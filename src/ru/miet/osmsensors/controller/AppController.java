@@ -1,11 +1,9 @@
 package ru.miet.osmsensors.controller;
 
 import java.util.Random;
-import java.util.Scanner;
 import ru.miet.osmsensors.model.Sensor;
 import ru.miet.osmsensors.model.SensorStorage;
 import ru.miet.osmsensors.view.ConsoleView;
-import ru.miet.osmsensors.controller.InvalidSensorInputException;
 
 public class AppController {
     private final SensorStorage storage;
@@ -103,12 +101,16 @@ public class AppController {
 
     private void filterById() {
         String Id = view.readLine("Введите ID");
-        int id = Integer.parseInt(Id);
-        Sensor found = storage.findById(id);
-        if (found == null) {
-            view.printMessage("Датчиков с таким ID нет");
-        } else {
-            view.printSensor(found);
+        try {
+            int id = Integer.parseInt(Id);
+            Sensor found = storage.findById(id);
+            if (found == null) {
+                view.printMessage("Датчиков с таким ID нет");
+            } else {
+                view.printSensor(found);
+            }
+        } catch (NumberFormatException e) {
+            view.printMessage("ID должно быть числом");
         }
     }
 
@@ -119,7 +121,7 @@ public class AppController {
                 throw new InvalidSensorInputException("ID не может быть отрицательным");
             }
             if (storage.findById(id) != null ) {
-                throw new InvalidSensorInputException("Датчик с таким " + id + "уже существует");
+                throw new InvalidSensorInputException("Датчик с таким " + id + " уже существует");
             }
             double x = Double.parseDouble(view.readLine("Координата X: "));
             double y = Double.parseDouble(view.readLine("Координата Y: "));
@@ -128,19 +130,19 @@ public class AppController {
                 throw new InvalidSensorInputException("Радиус не может быть отрицательным");
             }
             double value = Double.parseDouble(view.readLine("Значение: "));
-            String type = view.readLine("Тип (T, CO2, NO2): ");
+            String type = view.readLine("Тип (T, CO2, N2): ");
             if (!type.equalsIgnoreCase("T") && !type.equalsIgnoreCase("CO2") && !type.equalsIgnoreCase("N2")) {
-                throw new InvalidSensorInputException("Незвестный тип датчика");
+                throw new InvalidSensorInputException("Неизвестный тип датчика");
             }
             String status = view.readLine("Статус (OK, ERROR, WARNING): ");
-            if (!type.equalsIgnoreCase("OK") && !type.equalsIgnoreCase("ERROR") && !type.equalsIgnoreCase("WARNING")) {
+            if (!status.equalsIgnoreCase("OK") && !status.equalsIgnoreCase("ERROR") && !status.equalsIgnoreCase("WARNING")) {
                 throw new InvalidSensorInputException("Неизвестный статус");
             }
 
             Sensor sensor = new Sensor(id, x, y, radius, value, type, status);
             boolean ok = storage.add(sensor);
             if (!ok) {
-                view.printMessage(" ");
+                view.printMessage("Хранилище заполнено: " + storage.getCount() + " из  " + storage.getCapacity());
             } else {
                 view.printMessage("Датчик добавлен");
             }
