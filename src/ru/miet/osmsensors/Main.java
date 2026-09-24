@@ -1,32 +1,42 @@
 package ru.miet.osmsensors;
 
+import ru.miet.osmsensors.controller.AppController;
 import ru.miet.osmsensors.model.Sensor;
 import ru.miet.osmsensors.model.SensorStorage;
+import ru.miet.osmsensors.view.ConsoleView;
 
 public class Main {
+    private static final int DEFAULT_LIMIT = 20;
+
     public static void main(String[] args) {
-        // Создаем хранилище вместимостью до 10 датчиков
-        SensorStorage storage = new SensorStorage(10);
+        boolean demoMode = false;
+        int limit = DEFAULT_LIMIT;
 
-        // Добавляем тестовые датчики
-        storage.add(new Sensor(1, 12.5, 45.1, 5.0, 23.4, "T", "OK"));
-        storage.add(new Sensor(2, 14.0, 48.2, 8.0, 412.0, "CO2", "WARNING"));
-        storage.add(new Sensor(3, 11.2, 43.0, 4.0, 26.1, "T", "ERROR"));
-
-        // 1. Проверяем поиск по ID
-        System.out.println("--- Проверка поиска по ID ---");
-        Sensor found = storage.findById(2);
-        if (found != null) {
-            System.out.println("Найден: " + found.toFormattedString());
-        } else {
-            System.out.println("Датчик не найден");
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            if (arg.equals("--demo")) {
+                demoMode = true;
+            } else if (arg.equals("--limit")) {
+                try {
+                    limit = Integer.parseInt(args[i + 1]);
+                    i++;
+                } catch (NumberFormatException e) {
+                    System.out.println("Некорректное значение --limit");
+                    limit = DEFAULT_LIMIT;
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("После --limit не указано число");
+                    limit = DEFAULT_LIMIT;
+                }
+            }
         }
+        System.out.println("Запуск приложения в демо режиме " + demoMode + ", limit: " + limit);
 
-        // 2. Проверяем фильтрацию по типу
-        System.out.println("\n--- Проверка фильтрации по типу 'T' ---");
-        Sensor[] tempSensors = storage.findByType("T");
-        for (Sensor s : tempSensors) {
-            System.out.println(s.toFormattedString());
+        ConsoleView view = new ConsoleView();
+        SensorStorage storage = new SensorStorage(limit);
+        AppController controller = new AppController(storage, view);
+        if (demoMode) {
+            controller.initDefaultData(limit);
         }
+        controller.startInteractiveLoop();
     }
 }
