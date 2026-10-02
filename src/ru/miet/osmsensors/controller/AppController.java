@@ -1,14 +1,17 @@
 package ru.miet.osmsensors.controller;
 
-import java.util.Locale;
+import java.util.List;
 import java.util.Random;
+
 import ru.miet.osmsensors.view.ConsoleView;
 import ru.miet.osmsensors.model.*;
+import ru.miet.osmsensors.view.AppLogger;
 
 
 public class AppController {
     private final SensorRepository storage;
     private final ConsoleView view;
+    private final AppLogger logger;
 
     private static final int MENU_SHOW_ALL = 1;
     private static final int MENU_ADD = 2;
@@ -16,32 +19,33 @@ public class AppController {
     private static final int MENU_FIND_BY_ID = 4;
     private static final int MENU_ALARM = 5;
     private static final int MENU_STATS = 6;
+    private static final int MENU_ERRORS = 7;
     private static final int MENU_EXIT = 0;
 
-    public AppController(SensorRepository storage, ConsoleView view) {
+    public AppController(SensorRepository storage, ConsoleView view, AppLogger logger) {
         this.storage = storage;
         this.view = view;
+        this.logger = logger;
     }
 
     public void initDefaultData(int count) {
-        String[] types = {"T", "CO2", "N2"};
-        String[] statuses = {"OK", "ERROR", "WARNING"};
-        Random random = new Random();
+        SensorFactory factory = new SensorFactory(new Random());
 
-        for (int i = 1; i <= count; i++) {
-            String type = types[random.nextInt(types.length)];
-            String status = statuses[random.nextInt(statuses.length)];
-            double x = random.nextDouble() * 100;
-            double y = random.nextDouble() * 100;
-            double radius = random.nextDouble() * 20;
-            double value = random.nextDouble() * 500;
-
-            Sensor sensor = createSensor(type, i, x, y, radius, value, status);
-            storage.add(sensor);
-
+        for (Sensor sensor: factory.createSensors(count)) {
+            try {
+                storage.addUnique(sensor);
+            } catch (DuplicateSensorException e){
+                reportError(e);
+            } catch (StorageFullException e) {
+                reportError(e);
+                break;
+            }
         }
-        view.printMessage("Сгенерировано датчиков: " + storage.getCount());
+        String summary = "Сгенерировано датчиков: " + storage.getCount();
+        view.printMessage(summary);
+        logInfo(summary + " " + storage.findAlarmSensors().length);
     }
+
     private Sensor createSensor(String type, int id, double x, double y, double radius, double value, String status) {
         switch (type.toUpperCase()) {
             case "T":
@@ -94,6 +98,9 @@ public class AppController {
                 case MENU_STATS:
                     showStatistics();
                     break;
+                case MENU_ERRORS:
+                    showErrorStatistics();
+                    break;
                 default:
                     view.printMessage("Неизвестный пункт");
             }
@@ -111,7 +118,7 @@ public class AppController {
     }
 
     private void filterByType() {
-        String type = view.readLine("Введите тип:");
+        String type = view.readLine("Введите тип: ");
         Sensor[] filtered = storage.findByType(type);
         if (filtered.length == 0) {
             view.printMessage("Датчиков такого типа нет");
@@ -121,17 +128,14 @@ public class AppController {
     }
 
     private void filterById() {
-        String Id = view.readLine("Введите ID: ");
         try {
-            int id = Integer.parseInt(Id);
-            Sensor found = storage.findById(id);
-            if (found == null) {
-                view.printMessage("Датчиков с таким ID нет");
-            } else {
-                view.printSensor(found);
-            }
-        } catch (NumberFormatException e) {
-            view.printMessage("ID должно быть числом");
+            int id = readInt("Введите ID: ", "ID");
+            Sensor found = storage.getById(id);
+            view.printSensor(found);
+        } catch (InvalidSensorInputException e) {
+            reportError(e);
+        } catch (SensorNotFoundException e) {
+            reportError(e);
         }
     }
 
@@ -151,53 +155,90 @@ public class AppController {
 
     private void addSensorManually() {
         try {
-            int id = Integer.parseInt(view.readLine("ID: "));
+            int id = readInt("ID: ", "ID");
             if (id < 0) {
                 throw new InvalidSensorInputException("ID не может быть отрицательным");
             }
-            if (storage.findById(id) != null ) {
-                throw new InvalidSensorInputException("Датчик с таким " + id + " уже существует");
-            }
-            double x = Double.parseDouble(view.readLine("Координата X: ").replace(',', '.'));
-            double y = Double.parseDouble(view.readLine("Координата Y: ").replace(',', '.'));
-            double radius = Double.parseDouble(view.readLine("Радиус: ").replace(',', '.'));
-            if (radius < 0) {
-                throw new InvalidSensorInputException("Радиус не может быть отрицательным");
-            }
-            double value = Double.parseDouble(view.readLine("Значение: "));
-            String typeChoice = view.readLine("Тип (1 - температура, 2 - CO2, 3 - газ N2): ");
-            String type;
-            switch (typeChoice) {
-                case "1":
-                    type = "T";
-                    break;
-                case "2":
-                    type = "CO2";
-                    break;
-                case "3":
-                    type = "N2";
-                    break;
-                default:
-                    throw new InvalidSensorInputException("Неизвестный статус: " + typeChoice);
-            }
-
-            String status = view.readLine("Статус (OK, ERROR, WARNING): ");
-            if (!status.equalsIgnoreCase("OK") && !status.equalsIgnoreCase("ERROR") && !status.equalsIgnoreCase("WARNING")) {
-                throw new InvalidSensorInputException("Неизвестный статус");
-            }
-
-            Sensor sensor = createSensor(type, id, x, y, radius, value, status);
-            boolean ok = storage.add(sensor);
-            if (!ok) {
-                view.printMessage("Хранилище заполнено: " + storage.getCount() + " из  " + storage.getCapacity());
-            } else {
-                view.printMessage("Датчик добавлен");
-            }
-        } catch (NumberFormatException e) {
-            view.printMessage("Введено не число");
-        } catch (InvalidSensorInputException e) {
-            view.printMessage(e.getMessage());
+        double x = readDouble("Координата X: ", "Координата X");
+        double y = readDouble("Координата Y: ", "Координата Y");
+        double radius = readDouble("Радиус: ", "Радиус");
+        if (radius < 0) {
+            throw new InvalidSensorInputException("Радиус не может быть отрицательным");
         }
+        double value = readDouble("Значение: ", "Значение");
+        String type = readType();
+        String status = readStatus();
+
+        Sensor sensor = createSensor(type, id, x, y, radius, value, status);
+        storage.addUnique(sensor);             // бросает DuplicateSensorException или StorageFullException
+
+        view.printMessage("Датчик добавлен");
+        logInfo("Добавлен датчик id=" + id + ", тип=" + sensor.getType());
+        if (sensor.isAlarm()) {
+            view.printMessage("Внимание: датчик в аварийном режиме");
+            logInfo("ТРЕВОГА: датчик id=" + id + ", тип=" + sensor.getType() + ", значение=" + value);
+        }
+    } catch (InvalidSensorInputException e) {
+        reportError(e);
+    } catch (DuplicateSensorException e) {
+        reportError(e);
+    } catch (StorageFullException e) {
+        reportError(e);
+        }
+    }
+
+    private void showErrorStatistics() {
+        view.printMessage("Ошибок за сеанс: " + logger.getErrorCount());
+    }
+
+    private double readDouble(String prompt, String fieldName) throws InvalidSensorInputException {
+        String text = view.readLine(prompt).trim().replace(",", ".");
+        double number;
+        try {
+            number = Double.parseDouble(text);
+        } catch (NumberFormatException e) {
+            throw new InvalidSensorInputException("Поле «" + fieldName + "»: ожидалось число, введено \"" + text + "\"");
+        }
+        if (Double.isNaN(number) || Double.isInfinite(number)) {
+            throw new InvalidSensorInputException("Поле «" + fieldName + "»: недопустимое значение \"" + text + "\"");
+        }
+        return number;
+    }
+
+    private String readType() throws InvalidSensorInputException {
+        String choice = view.readLine("Тип (1 - температура, 2 - CO2, 3 - газ N2): ").trim();
+        switch (choice) {
+            case "1":
+                return "T";
+            case "2":
+                return "CO2";
+            case "3":
+                return "N2";
+            default:
+                throw new InvalidSensorInputException("Неизвестный тип датчика: " + choice);
+        }
+    }
+
+    private String readStatus() throws InvalidSensorInputException {
+        String status = view.readLine("Статус (OK, ERROR, WARNING): ").trim().toUpperCase();
+        if (!status.equals("OK") && !status.equals("ERROR") && !status.equals("WARNING")) {
+            throw new InvalidSensorInputException("Неизвестный статус: " + status);
+        }
+        return status;
+    }
+
+    private void reportError(Exception e) {
+        String message = (e.getMessage() != null) ? e.getMessage(): e.getClass().getSimpleName();
+        view.printMessage("Ошибка: " + message);
+        logError(message);
+    }
+
+    private void logInfo(String message) {
+        logger.info(message);
+    }
+
+    private void logError(String message) {
+        logger.error(message);
     }
 }
 
