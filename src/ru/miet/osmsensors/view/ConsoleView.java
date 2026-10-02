@@ -8,6 +8,7 @@ public class ConsoleView {
 	private Scanner scanner = new Scanner(System.in);
 	
     public ConsoleView() { }
+    
     public void showMenu() {
     	System.out.println(
     			"1 — Показать все датчики.\n"
@@ -19,17 +20,31 @@ public class ConsoleView {
     			+ "0 — Выход."
     	);
     }
+    
     public void printSensor(Sensor s) {
     	System.out.println(s.toString());
     }
+    
     public void printSensorTable(Sensor[] sensors) {
     	for (Sensor s: sensors) {
     		System.out.println(s.toString());
     	}
     }
+    
+    public void printSensorTable(List<Sensor> sensors) {
+    	for (Sensor s: sensors) {
+    		System.out.println(s.toString());
+    	}
+    }
+    
     public void printMessage(String msg) {
     	System.out.println(msg);
     }
+    
+    public void printError(Exception e) {
+    	System.err.println(e.getMessage());
+    }
+    
     public String readLine(String prompt) {
     	System.out.print(prompt);
     	return scanner.nextLine();
