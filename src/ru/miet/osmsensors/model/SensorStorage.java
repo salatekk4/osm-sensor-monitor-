@@ -1,112 +1,107 @@
 package ru.miet.osmsensors.model;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+/**
+ * Хранилище датчиков на коллекциях.
+ * List сохраняет порядок добавления, Map обеспечивает быстрый поиск по ID.
+ * Лимита на количество датчиков нет.
+ */
 public class SensorStorage implements SensorRepository {
-    private final Sensor[] items;
-    private int count;
+    private final List<Sensor> items = new ArrayList<>();
+    private final Map<Integer, Sensor> byId = new HashMap<>();
 
     public SensorStorage() {
-        this(20);
     }
 
-    public SensorStorage(int capacity) {
-        this.items = new Sensor[capacity];
-        this.count = 0;
+    /** Оставлен для совместимости со старым кодом; параметр игнорируется. */
+    public SensorStorage(int ignoredCapacity) {
+        this();
     }
 
     /**
-     * Добавление датчика в хранилище.
-     * @return true, если датчик успешно добавлен; false, если массив переполнен или s == null
+     * @return true, если датчик добавлен; false, если s == null
+     * @throws DuplicateSensorException если датчик с таким ID уже есть
      */
     @Override
     public boolean add(Sensor s) {
-        if (s == null || count >= items.length) {
+        if (s == null) {
             return false;
         }
-        items[count] = s;
-        count++;
+        if (byId.containsKey(s.getId())) {
+            throw new DuplicateSensorException(s.getId());
+        }
+        items.add(s);
+        byId.put(s.getId(), s);
         return true;
     }
 
-    /**
-     * Поиск датчика по ID перебором элементов.
-     * @return найденный Sensor или null, если не найден
-     */
+    /** @throws SensorNotFoundException если датчика с таким ID нет */
     @Override
     public Sensor findById(int id) {
-        for (int i = 0; i < count; i++) {
-            if (items[i].getId() == id) {
-                return items[i];
-            }
+        Sensor s = byId.get(id);
+        if (s == null) {
+            throw new SensorNotFoundException(id);
         }
-        return null;
+        return s;
     }
 
     /**
-     * Фильтрация датчиков по типу ("T", "CO2", "N2").
-     * @return новый массив Sensor[] точной длины; пустой массив, если совпадений нет
+     * Удаляет датчик по ID.
+     * @return удалённый датчик
+     * @throws SensorNotFoundException если датчика с таким ID нет
      */
+    @Override
+    public Sensor removeById(int id) {
+        Sensor s = byId.remove(id);
+        if (s == null) {
+            throw new SensorNotFoundException(id);
+        }
+        items.remove(s);
+        return s;
+    }
+
     @Override
     public Sensor[] findByType(String type) {
-        if (type == null) {
-            return new Sensor[0];
-        }
-        int matchCount = 0;
-        for (int i = 0; i < count; i++) {
-            if (type.equalsIgnoreCase(items[i].getType())) {
-                matchCount++;
+        List<Sensor> result = new ArrayList<>();
+        if (type != null) {
+            for (Sensor s : items) {
+                if (type.equalsIgnoreCase(s.getType())) {
+                    result.add(s);
+                }
             }
         }
-        Sensor[] result = new Sensor[matchCount];
-        int index = 0;
-        for (int i = 0; i < count; i++) {
-            if (type.equalsIgnoreCase(items[i].getType())) {
-                result[index++] = items[i];
-            }
-        }
-        return result;
+        return result.toArray(new Sensor[0]);
     }
 
-    /**
-     * Получить все аварийные датчики (isAlarm() == true).
-     * @return новый массив Sensor[] точной длины; пустой массив, если аварийных нет
-     */
     @Override
     public Sensor[] findAlarmSensors() {
-        // 1. Считаем количество аварийных датчиков
-        int alarmCount = 0;
-        for (int i = 0; i < count; i++) {
-            if (items[i].isAlarm()) {
-                alarmCount++;
+        List<Sensor> result = new ArrayList<>();
+        for (Sensor s : items) {
+            if (s.isAlarm()) {
+                result.add(s);
             }
         }
-        // 2. Создаём массив точной длины и заполняем его
-        Sensor[] result = new Sensor[alarmCount];
-        int index = 0;
-        for (int i = 0; i < count; i++) {
-            if (items[i].isAlarm()) {
-                result[index++] = items[i];
-            }
-        }
-        return result;
+        return result.toArray(new Sensor[0]);
     }
 
-    /**
-     * Получить все добавленные датчики (массив точной длины без пустых null-ячеек)
-     */
     @Override
     public Sensor[] getAll() {
-        return Arrays.copyOf(items, count);
+        return items.toArray(new Sensor[0]);
     }
 
     @Override
     public int getCount() {
-        return count;
+        return items.size();
     }
 
+    /** Лимита больше нет. Оставлен только чтобы не ломать старый код. */
     @Override
+    @Deprecated
     public int getCapacity() {
-        return items.length;
+        return Integer.MAX_VALUE;
     }
 }

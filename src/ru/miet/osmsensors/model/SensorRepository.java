@@ -8,24 +8,32 @@ public interface SensorRepository {
 
     /**
      * Добавить датчик в хранилище.
-     * @return true — добавлен успешно, false — хранилище заполнено или s == null
+     * @return true — добавлен, false — s == null
+     * @throws DuplicateSensorException если ID уже занят
      */
     boolean add(Sensor s);
 
     /**
      * Найти датчик по идентификатору.
-     * @return найденный Sensor или null
+     * @throws SensorNotFoundException если датчика нет
      */
     Sensor findById(int id);
 
     /**
+     * Удалить датчик по идентификатору.
+     * @return удалённый датчик
+     * @throws SensorNotFoundException если датчика нет
+     */
+    Sensor removeById(int id);
+
+    /**
      * Получить все датчики указанного типа ("T", "CO2", "N2").
-     * @return новый массив точной длины; пустой массив, если совпадений нет
+     * @return новый массив; пустой, если совпадений нет
      */
     Sensor[] findByType(String type);
 
     /**
-     * Получить все добавленные датчики без пустых ячеек.
+     * Получить все добавленные датчики.
      */
     Sensor[] getAll();
 
@@ -35,13 +43,15 @@ public interface SensorRepository {
     int getCount();
 
     /**
-     * Максимальная ёмкость хранилища.
+     * Лимита больше нет.
+     * @deprecated оставлен для совместимости, вернёт Integer.MAX_VALUE
      */
+    @Deprecated
     int getCapacity();
 
     /**
      * Получить все датчики, у которых isAlarm() == true.
-     * @return новый массив точной длины; пустой массив, если аварийных нет
+     * @return новый массив; пустой, если аварийных нет
      */
     Sensor[] findAlarmSensors();
 }
