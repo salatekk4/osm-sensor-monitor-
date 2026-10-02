@@ -5,7 +5,7 @@ import java.util.Random;
 
 import ru.miet.osmsensors.view.ConsoleView;
 import ru.miet.osmsensors.model.*;
-import ru.miet.osmsensors.view.AppLogger;
+import ru.miet.osmsensors.controller.AppLogger;
 
 
 public class AppController {
@@ -205,6 +205,15 @@ public class AppController {
         return number;
     }
 
+    private int readInt(String prompt, String fieldName) throws InvalidSensorInputException {
+        String text = view.readLine(prompt).trim();
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            throw new InvalidSensorInputException("Поле «" + fieldName + "»: ожидалось целое число, введено \"" + text + "\"");
+        }
+    }
+
     private String readType() throws InvalidSensorInputException {
         String choice = view.readLine("Тип (1 - температура, 2 - CO2, 3 - газ N2): ").trim();
         switch (choice) {
@@ -230,15 +239,19 @@ public class AppController {
     private void reportError(Exception e) {
         String message = (e.getMessage() != null) ? e.getMessage(): e.getClass().getSimpleName();
         view.printMessage("Ошибка: " + message);
-        logError(message);
+        logError(e);
     }
 
     private void logInfo(String message) {
-        logger.info(message);
+        logger.logInfo(message);
     }
 
-    private void logError(String message) {
-        logger.error(message);
+    private void logError(Exception e) {
+        logger.logError(e);
+    }
+
+    private void logWarning(String message) {
+        logger.logWarning(message);
     }
 }
 

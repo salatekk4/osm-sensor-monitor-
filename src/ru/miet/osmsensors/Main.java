@@ -1,11 +1,12 @@
 package ru.miet.osmsensors;
 
 import java.util.List;
+import java.io.IOException;
 
 import ru.miet.osmsensors.model.*;
 import ru.miet.osmsensors.view.ConsoleView;
 import ru.miet.osmsensors.controller.AppController;
-import ru.miet.osmsensors.view.AppLogger;
+import ru.miet.osmsensors.controller.AppLogger;
 
 public class Main {
     private static final int DEFAULT_LIMIT = 20;
@@ -48,8 +49,17 @@ public class Main {
 
         System.out.println("Запуск приложения. Демо-режим: " + demoMode + ", " + " limit: " + limit);
 
-        ConsoleView view = new ConsoleView();
         SensorRepository storage = new SensorStorage(limit);
+        ConsoleView view = new ConsoleView();
+
+        AppLogger logger;
+        try {
+            logger = new AppLogger();   // конструктор объявлен с throws IOException — его нужно обработать
+        } catch (IOException e) {
+            System.out.println("Не удалось запустить логгер: " + e.getMessage());
+            return;
+        }
+
         AppController controller = new AppController(storage, view, logger);
 
         if (demoMode) {
