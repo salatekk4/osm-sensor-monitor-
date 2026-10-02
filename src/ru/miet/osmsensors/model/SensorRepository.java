@@ -2,46 +2,39 @@ package ru.miet.osmsensors.model;
 
 /**
  * Интерфейс репозитория датчиков.
- * Определяет контракт для любого хранилища объектов Sensor.
+ * Старые методы (add, findById) не бросают исключений и сохраняют прежнее поведение.
+ * Новые методы addUnique и getById сообщают об ошибках через исключения.
  */
 public interface SensorRepository {
 
-    /**
-     * Добавить датчик в хранилище.
-     * @return true — добавлен успешно, false — хранилище заполнено или s == null
-     */
+    /** @return true - добавлен; false - хранилище заполнено или s == null */
     boolean add(Sensor s);
 
-    /**
-     * Найти датчик по идентификатору.
-     * @return найденный Sensor или null
-     */
+    /** @return найденный Sensor или null */
     Sensor findById(int id);
 
-    /**
-     * Получить все датчики указанного типа ("T", "CO2", "N2").
-     * @return новый массив точной длины; пустой массив, если совпадений нет
-     */
+    /** @return новый массив точной длины; пустой, если совпадений нет */
     Sensor[] findByType(String type);
 
-    /**
-     * Получить все добавленные датчики без пустых ячеек.
-     */
     Sensor[] getAll();
 
-    /**
-     * Текущее количество датчиков в хранилище.
-     */
     int getCount();
 
-    /**
-     * Максимальная ёмкость хранилища.
-     */
     int getCapacity();
 
-    /**
-     * Получить все датчики, у которых isAlarm() == true.
-     * @return новый массив точной длины; пустой массив, если аварийных нет
-     */
+    /** @return новый массив точной длины с датчиками, у которых isAlarm() == true */
     Sensor[] findAlarmSensors();
+
+    /**
+     * Добавляет датчик, если id свободен и есть место.
+     * @throws IllegalArgumentException если s == null
+     * @throws DuplicateSensorException если датчик с таким id уже есть
+     * @throws StorageFullException     если хранилище заполнено
+     */
+    void addUnique(Sensor s) throws DuplicateSensorException, StorageFullException;
+
+    /**
+     * @throws SensorNotFoundException если датчика с таким id нет
+     */
+    Sensor getById(int id) throws SensorNotFoundException;
 }
