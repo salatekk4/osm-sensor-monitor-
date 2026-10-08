@@ -101,4 +101,38 @@ public class SensorStorage implements SensorRepository {
         }
         return found;
     }
+
+    @Override
+    public void updateById(int id, Sensor updatedSensor)
+            throws SensorNotFoundException, DuplicateSensorException {
+        if (updatedSensor == null) {
+            throw new IllegalArgumentException("Датчик не может быть null");
+        }
+        int index = indexOf(id);
+        if (index < 0) {
+            throw new SensorNotFoundException(id);
+        }
+        if (updatedSensor.getId() != id && findById(updatedSensor.getId()) != null) {
+            throw new DuplicateSensorException(updatedSensor.getId());
+        }
+        items.set(index, updatedSensor);
+    }
+
+    @Override
+    public void deleteById(int id) throws SensorNotFoundException {
+        int index = indexOf(id);
+        if (index < 0) {
+            throw new SensorNotFoundException(id);
+        }
+        items.remove(index);
+    }
+
+    private int indexOf(int id) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).getId() == id) {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

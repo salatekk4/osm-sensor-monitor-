@@ -37,4 +37,19 @@ public interface SensorRepository {
      * @throws SensorNotFoundException если датчика с таким id нет
      */
     Sensor getById(int id) throws SensorNotFoundException;
+
+    /**
+     * Заменяет датчик с указанным id новым объектом.
+     * @throws IllegalArgumentException если updatedSensor == null
+     * @throws SensorNotFoundException  если датчика с таким id нет
+     * @throws DuplicateSensorException если новый id уже занят другим датчиком
+     */
+    void updateById(int id, Sensor updatedSensor)
+            throws SensorNotFoundException, DuplicateSensorException;
+
+    /**
+     * Удаляет датчик по id.
+     * @throws SensorNotFoundException если датчика с таким id нет
+     */
+    void deleteById(int id) throws SensorNotFoundException;
 }
