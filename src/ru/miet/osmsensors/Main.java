@@ -7,6 +7,10 @@ import ru.miet.osmsensors.model.*;
 import ru.miet.osmsensors.view.ConsoleView;
 import ru.miet.osmsensors.controller.AppController;
 import ru.miet.osmsensors.controller.AppLogger;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import ru.miet.osmsensors.controller.AppConfig;
+
 
 public class Main {
     private static final int DEFAULT_LIMIT = 20;
@@ -14,6 +18,8 @@ public class Main {
     private static final int DEFAULT_DEMO_COUNT = 10;
 
     private static final long BENCHMARK_SEED = 12345L;
+
+    private static final Path CONFIG_FIlE = Paths.get("config.properties");
 
     public static void main(String[] args) {
         boolean demoMode = false;
@@ -49,9 +55,6 @@ public class Main {
 
         System.out.println("Запуск приложения. Демо-режим: " + demoMode + ", " + " limit: " + limit);
 
-        SensorRepository storage = new SensorStorage(limit);
-        ConsoleView view = new ConsoleView();
-
         AppLogger logger;
         try {
             logger = new AppLogger();   // конструктор объявлен с throws IOException — его нужно обработать
@@ -60,11 +63,29 @@ public class Main {
             return;
         }
 
-        AppController controller = new AppController(storage, view, logger);
+        AppConfig config;
+        try {
+            config = AppConfig.load(CONFIG_FIlE);
+        } catch (IOException e) {
+            System.out.println("Не удалось прочитать настройки" + e.getMessage());
+            logger.logError(e);
+            return;
+        }
 
+        SensorRepository storage = new SensorStorage(limit);
+        ConsoleView view = new ConsoleView();
+        SensorFileRepository fileRepository = new SensorFileRepository(Paths.get(config.getDbfile()));
+        AppController controller = new AppController(storage, view, logger, fileRepository, config);
+
+        if (!controller.login()) {
+            return;
+        }
+
+        if (config.isAutotests()) {
+            controller.runAutoTests();
+        }
         if (demoMode) {
             controller.initDefaultData(Math.min(limit, DEFAULT_DEMO_COUNT));
-
             demonstrateEqualsAndHashCode(storage);
         }
         controller.startInteractiveLoop();
@@ -108,7 +129,7 @@ public class Main {
         }
 
         Sensor original = all[0];
-        Sensor duplicateById = new TemperatureSensor(original.getId(), 0, 0, 0, 0, "OK");
+        Sensor duplicateById = sameClassWithSameId(original);
 
         System.out.println("Проверка equals()/hashCode()");
         System.out.println("Реальный датчик из storage, id=" + original.getId()
