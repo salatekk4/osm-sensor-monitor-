@@ -81,7 +81,7 @@ public class AppController {
     }
 
     private int readMenuChoice() {
-        String input = view.readLine("Введите номер пункта: ");
+        String input = view.readLine("Введите номер пункта: ").trim();
         try {
             return Integer.parseInt(input);
         } catch (NumberFormatException e){
@@ -95,6 +95,7 @@ public class AppController {
             view.showMenu();
 
             int choice = readMenuChoice();
+            debug("Выбран пункт меню: " + choice);
 
             switch (choice) {
                 case MENU_SHOW_ALL:
@@ -112,6 +113,7 @@ public class AppController {
                 case MENU_EXIT:
                     running = false;
                     view.printMessage("Выход из программы");
+                    logInfo("Завершение программы. Пользователь: " + config.getLogin());
                     break;
                 case MENU_ALARM:
                     showAlarmSensors();
@@ -298,7 +300,7 @@ public class AppController {
         }
 
         if (fromFile.isEmpty()) {
-            view.printMessage("Файд пуст или не найден.");
+            view.printMessage("Файл пуст или не найден.");
             return;
         }
         clearStorage();
@@ -331,12 +333,12 @@ public class AppController {
 
     private void toggleDebug() {
         debugMode = !debugMode;
-        view.printMessage("");
+        view.printMessage("Режим отладки: " + (debugMode ? "включен" : "выключен"));
         logInfo("Режим отладки переключен: " + debugMode);
     }
 
     public void runAutoTests() {
-        logInfo("");
+        logInfo("Автотесты: запуск. Пользователь: " + config.getLogin());
         AutoTests tests = new AutoTests(view, logger);
         boolean allPassed = tests.runAll();
 

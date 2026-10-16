@@ -19,7 +19,7 @@ public class Main {
 
     private static final long BENCHMARK_SEED = 12345L;
 
-    private static final Path CONFIG_FIlE = Paths.get("config.properties");
+    private static final Path CONFIG_FILE = Paths.get("config.properties");
 
     public static void main(String[] args) {
         boolean demoMode = false;
@@ -32,7 +32,7 @@ public class Main {
                 demoMode = true;
             } else if (arg.equals("--benchmark")) {
                 benchmarkMode = true;
-            } else if (arg.equals("--limit"))
+            } else if (arg.equals("--limit")) {
                 try {
                     int value = Integer.parseInt(args[i + 1]);
                     i++;
@@ -47,6 +47,7 @@ public class Main {
                     System.out.println("После --limit не указано число");
                 }
             }
+        }
 
         if (benchmarkMode) {
             runBenchmark();
@@ -65,9 +66,9 @@ public class Main {
 
         AppConfig config;
         try {
-            config = AppConfig.load(CONFIG_FIlE);
+            config = AppConfig.load(CONFIG_FILE);
         } catch (IOException e) {
-            System.out.println("Не удалось прочитать настройки" + e.getMessage());
+            System.out.println("Не удалось прочитать настройки: " + e.getMessage());
             logger.logError(e);
             return;
         }
