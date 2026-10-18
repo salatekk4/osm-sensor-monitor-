@@ -64,15 +64,9 @@ public class Main {
             return;
         }
 
-        ConsoleView view = new ConsoleView();
+        ConsoleView view = new ConsoleView(config.isRoot());
 
-        AppLogger logger;
-        try {
-            logger = new AppLogger(view);
-        } catch (IOException e) {
-            System.out.println("Не удалось запустить логгер: " + e.getMessage());
-            return;
-        }
+        AppLogger logger = new AppLogger(view);
 
         SensorRepository storage = new SensorStorage(limit);
         SensorFileRepository fileRepository = new SensorFileRepository(Paths.get(config.getDbfile()));
