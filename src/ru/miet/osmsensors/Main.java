@@ -56,6 +56,14 @@ public class Main {
 
         System.out.println("Запуск приложения. Демо-режим: " + demoMode + ", " + " limit: " + limit);
 
+        AppConfig config;
+        try {
+            config = AppConfig.load(CONFIG_FILE);
+        } catch (IOException e) {
+            System.out.println("Не удалось прочитать настройки: " + e.getMessage());
+            return;
+        }
+
         ConsoleView view = new ConsoleView(config.isRoot());
 
         AppLogger logger;
@@ -63,14 +71,6 @@ public class Main {
             logger = new AppLogger(view);
         } catch (IOException e) {
             System.out.println("Не удалось запустить логгер: " + e.getMessage());
-            return;
-        }
-
-        AppConfig config;
-        try {
-            config = AppConfig.load(CONFIG_FILE);
-        } catch (IOException e) {
-            System.out.println("Не удалось прочитать настройки: " + e.getMessage());
             return;
         }
 
