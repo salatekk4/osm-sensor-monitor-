@@ -69,9 +69,9 @@ public class AppController {
             try {
                 storage.addUnique(sensor);
             } catch (DuplicateSensorException e){
-                reportError(e);
+                logger.logError(e);
             } catch (StorageFullException e) {
-                reportError(e);
+                logger.logError(e);
                 break;
             }
         }
@@ -182,9 +182,9 @@ public class AppController {
             Sensor found = storage.getById(id);
             view.printSensor(found);
         } catch (InvalidSensorInputException e) {
-            reportError(e);
+            logger.logError(e);
         } catch (SensorNotFoundException e) {
-            reportError(e);
+            logger.logError(e);
         }
     }
 
@@ -232,11 +232,11 @@ public class AppController {
                         + ", значение=" + sensor.getValue());
             }
         } catch (InvalidSensorInputException e) {
-            reportError(e);
+            logger.logError(e);
         } catch (DuplicateSensorException e) {
-            reportError(e);
+            logger.logError(e);
         } catch (StorageFullException e) {
-            reportError(e);
+            logger.logError(e);
         }
     }
 
@@ -253,11 +253,11 @@ public class AppController {
             view.printMessage("Датчик изменен. Чтобы изменение попало в файл - пункт 10.");
             logInfo("Изменен датчик id = " + id);
         } catch (InvalidSensorInputException e) {
-            reportError(e);
+            logger.logError(e);
         } catch (SensorNotFoundException e) {
-            reportError(e);
+            logger.logError(e);
         } catch (DuplicateSensorException e) {
-            reportError(e);
+            logger.logError(e);
         }
     }
 
@@ -268,9 +268,9 @@ public class AppController {
             view.printMessage("Датчик удален. Чтобы изменение попало в файл - пункт 10.");
             logInfo("Удален датчик id = " + id);
         } catch (InvalidSensorInputException e) {
-            reportError(e);
+            logger.logError(e);
         } catch(SensorNotFoundException e) {
-            reportError(e);
+            logger.logError(e);
         }
     }
 
@@ -283,7 +283,7 @@ public class AppController {
             view.printMessage(message);
             logInfo("Запись БД. " + message);
         } catch (IOException e) {
-            reportError(e);
+            logger.logError(e);
         }
     }
 
@@ -292,10 +292,10 @@ public class AppController {
         try {
             fromFile = fileRepository.readAll();
         } catch (IOException e) {
-            reportError(e);
+            logger.logError(e);
             return;
         } catch (SensorFileFormatException e) {
-            reportError(e);
+            logger.logError(e);
             return;
         }
 
@@ -310,9 +310,9 @@ public class AppController {
                 storage.addUnique(sensor);
                 loaded++;
             } catch (DuplicateSensorException e) {
-                reportError(e);
+                logger.logError(e);
             } catch (StorageFullException e) {
-                reportError(e);
+                logger.logError(e);
                 break;
             }
         }
@@ -326,7 +326,7 @@ public class AppController {
             try {
                 storage.deleteById(sensor.getId());
             } catch (SensorNotFoundException e) {
-                reportError(e);
+                logger.logError(e);
             }
         }
     }
@@ -422,12 +422,6 @@ public class AppController {
         return status;
     }
 
-    private void reportError(Exception e) {
-        String message = (e.getMessage() != null) ? e.getMessage(): e.getClass().getSimpleName();
-        view.printMessage("Ошибка: " + message);
-        logError(e);
-    }
-
     private void debug(String message) {
         if (debugMode) {
             logger.logInfo("[DEBUG] " + message);
@@ -438,9 +432,6 @@ public class AppController {
         logger.logInfo(message);
     }
 
-    private void logError(Exception e) {
-        logger.logError(e);
-    }
 
     private void logWarning(String message) {
         logger.logWarning(message);

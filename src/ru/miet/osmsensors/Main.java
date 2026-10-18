@@ -56,9 +56,11 @@ public class Main {
 
         System.out.println("Запуск приложения. Демо-режим: " + demoMode + ", " + " limit: " + limit);
 
+        ConsoleView view = new ConsoleView(config.isRoot());
+
         AppLogger logger;
         try {
-            logger = new AppLogger();   // конструктор объявлен с throws IOException — его нужно обработать
+            logger = new AppLogger(view);
         } catch (IOException e) {
             System.out.println("Не удалось запустить логгер: " + e.getMessage());
             return;
@@ -69,12 +71,10 @@ public class Main {
             config = AppConfig.load(CONFIG_FILE);
         } catch (IOException e) {
             System.out.println("Не удалось прочитать настройки: " + e.getMessage());
-            logger.logError(e);
             return;
         }
 
         SensorRepository storage = new SensorStorage(limit);
-        ConsoleView view = new ConsoleView();
         SensorFileRepository fileRepository = new SensorFileRepository(Paths.get(config.getDbfile()));
         AppController controller = new AppController(storage, view, logger, fileRepository, config);
 
