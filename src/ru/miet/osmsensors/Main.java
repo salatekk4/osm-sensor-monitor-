@@ -64,7 +64,7 @@ public class Main {
             return;
         }
 
-        ConsoleView view = new ConsoleView(config.isRoot());
+        ConsoleView view = new ConsoleView();
 
         AppLogger logger;
         try {
