@@ -5,11 +5,16 @@ import java.util.Scanner;
 import java.util.List;
 
 public class ConsoleView {
+	private boolean isRoot = false;
 	private Scanner scanner = new Scanner(System.in);
 	
     public ConsoleView() { }
     
-    public void showMenu(boolean isRoot) {
+    public ConsoleView(boolean isRoot) {
+    	this.isRoot = isRoot;
+    }
+    
+    public void showMenu() {
     	System.out.println(
     			"1  - Показать все датчики.\n"
     			+ "2  - Добавить новый датчик вручную.\n"
@@ -31,25 +36,6 @@ public class ConsoleView {
     	}
     	System.out.println(
     			"0  - Выход из программы"
-    	);
-    }
-    
-    public void showMenu() {
-    	System.out.println(
-    			"1  - Показать все датчики.\n"
-    	    	+ "2  - Добавить новый датчик вручную.\n"
-    	    	+ "3  - Фильтр по типу датчика (T, CO2, N2).\n"
-    	    	+ "4  - Найти датчик по ID.\n"
-    	    	+ "5  - Показать аварийные датчики.\n"
-    	    	+ "6  - Показать статистику.\n"
-    	    	+ "7  - Показать ошибки.\n"
-    	    	+ "8  - Обновить датчик.\n"
-    	    	+ "9  - Удалить датчик.\n"
-    	    	+ "10 - Сохранить датчики в файл.\n"
-    	    	+ "11 - Загрузить датчики из файла.\n"
-    	    	+ "12 - Режим отладки (вкл/выкл).\n"
-				+ "13 - Запустить автотесты.\n"
-				+ "0  - Выход из программы"
     	);
     }
     

@@ -19,30 +19,24 @@ public class AppLogger {
 		try {
 	        Files.createDirectories(Paths.get("logs"));
 
-	        try (InputStream is = AppLogger.class.getResourceAsStream("logging.properties")) {
-	            if (is == null) {
-	                throw new IllegalStateException("logging.properties не найден");
-	            }
-	            LogManager.getLogManager().readConfiguration(is);
+	        InputStream is = AppLogger.class.getResourceAsStream("logging.properties");
+	        if (is == null) {
+	        	throw new IllegalStateException("logging.properties не найден");
 	        }
+	        LogManager.getLogManager().readConfiguration(is);
+			errList = new ArrayList <Exception>();
+			log = Logger.getLogger(AppLogger.class.getName());
 	    } catch (IOException e) {
-	    	log.log(Level.SEVERE, e.getMessage());
+	    	String message = (e.getMessage() != null) ? e.getMessage() : e.getClass().getSimpleName();
+	    	System.err.println(message);
 	    } catch (IllegalStateException e) {
-	    	log.log(Level.SEVERE, e.getMessage());
+	    	String message = (e.getMessage() != null) ? e.getMessage() : e.getClass().getSimpleName();
+	    	System.err.println(message);
 	    }
 	}
 	
-	public AppLogger() throws IOException {
-		errList = new ArrayList <Exception>();
-		LogManager.getLogManager().readConfiguration(AppLogger.class.getResourceAsStream("logging.properties"));
-		log = Logger.getLogger(AppLogger.class.getName());
-	}
-	
-	public AppLogger(ConsoleView view) throws IOException {
+	public AppLogger(ConsoleView view) {
 		AppLogger.view = view;
-		errList = new ArrayList <Exception>();
-		LogManager.getLogManager().readConfiguration(AppLogger.class.getResourceAsStream("logging.properties"));
-		log = Logger.getLogger(AppLogger.class.getName());
 	}
 	
 	public int addError(Exception e) {
@@ -75,8 +69,6 @@ public class AppLogger {
 	}
 	
 	public void showErrorMessage(Exception e) {
-		//view.printError(e);
-		String message = (e.getMessage() != null) ? e.getMessage() : e.getClass().getSimpleName();
-		System.err.println(message);
+		view.printError(e);
 	}
 }
