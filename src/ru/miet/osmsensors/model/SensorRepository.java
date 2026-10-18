@@ -52,4 +52,22 @@ public interface SensorRepository {
      * @throws SensorNotFoundException если датчика с таким id нет
      */
     void deleteById(int id) throws SensorNotFoundException;
+
+    /**
+     * Редактирует датчик по id (id сохраняется). Тип может меняться,
+     * поэтому создаётся новый объект нужного класса.
+     * @throws SensorNotFoundException если датчика с таким id нет
+     */
+    default void updateSensor(int id, String type, double x, double y,
+                              double radius, double value, String status)
+            throws SensorNotFoundException, DuplicateSensorException {
+        getById(id);
+        Sensor updated;
+        switch (type.toUpperCase()) {
+            case "CO2": updated = new Co2Sensor(id, x, y, radius, value, status); break;
+            case "N2":  updated = new GasSensor(id, x, y, radius, value, status); break;
+            default:    updated = new TemperatureSensor(id, x, y, radius, value, status);
+        }
+        updateById(id, updated);
+    }
 }
