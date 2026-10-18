@@ -1,15 +1,27 @@
 package ru.miet.osmsensors.model;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Хранилище датчиков на ArrayList. Лимит ёмкости сохранён, чтобы поведение
- * старых методов не изменилось.
+ * Потокобезопасное хранилище датчиков на ArrayList.
+ * Все публичные методы synchronized (монитор - сам объект хранилища), поэтому
+ * одновременная запись из нескольких потоков не портит внутреннюю структуру.
+ * Составные операции (проверка id + добавление, поиск + замена) выполняются
+ * атомарно в рамках одного вызова.
+ *
+ * Разрешение коллизий при записи в один id - upsert(): побеждает показание
+ * с большей меткой времени (last-write-wins по timestamp); более старое отбрасывается.
+ * Датчики не изменяются на месте, а заменяются новым объектом, поэтому массив,
+ * возвращённый getAll(), остаётся согласованным снимком для GUI.
  */
 public class SensorStorage implements SensorRepository {
     private final List<Sensor> items;
     private final int capacity;
+    private final Map<Integer, Long> lastWrite = new HashMap<>();
+    private long collisionCount = 0;
 
     public SensorStorage() {
         this(20);
@@ -21,16 +33,17 @@ public class SensorStorage implements SensorRepository {
     }
 
     @Override
-    public boolean add(Sensor s) {
+    public synchronized boolean add(Sensor s) {
         if (s == null || items.size() >= capacity) {
             return false;
         }
         items.add(s);
+        lastWrite.put(s.getId(), System.currentTimeMillis());
         return true;
     }
 
     @Override
-    public Sensor findById(int id) {
+    public synchronized Sensor findById(int id) {
         for (Sensor s : items) {
             if (s.getId() == id) {
                 return s;
@@ -40,7 +53,7 @@ public class SensorStorage implements SensorRepository {
     }
 
     @Override
-    public Sensor[] findByType(String type) {
+    public synchronized Sensor[] findByType(String type) {
         if (type == null) {
             return new Sensor[0];
         }
@@ -54,7 +67,7 @@ public class SensorStorage implements SensorRepository {
     }
 
     @Override
-    public Sensor[] findAlarmSensors() {
+    public synchronized Sensor[] findAlarmSensors() {
         List<Sensor> result = new ArrayList<>();
         for (Sensor s : items) {
             if (s.isAlarm()) {
@@ -65,12 +78,12 @@ public class SensorStorage implements SensorRepository {
     }
 
     @Override
-    public Sensor[] getAll() {
+    public synchronized Sensor[] getAll() {
         return items.toArray(new Sensor[0]);
     }
 
     @Override
-    public int getCount() {
+    public synchronized int getCount() {
         return items.size();
     }
 
@@ -80,7 +93,7 @@ public class SensorStorage implements SensorRepository {
     }
 
     @Override
-    public void addUnique(Sensor s) throws DuplicateSensorException, StorageFullException {
+    public synchronized void addUnique(Sensor s) throws DuplicateSensorException, StorageFullException {
         if (s == null) {
             throw new IllegalArgumentException("Датчик не может быть null");
         }
@@ -91,10 +104,11 @@ public class SensorStorage implements SensorRepository {
             throw new StorageFullException(capacity);
         }
         items.add(s);
+        lastWrite.put(s.getId(), System.currentTimeMillis());
     }
 
     @Override
-    public Sensor getById(int id) throws SensorNotFoundException {
+    public synchronized Sensor getById(int id) throws SensorNotFoundException {
         Sensor found = findById(id);
         if (found == null) {
             throw new SensorNotFoundException(id);
@@ -103,7 +117,7 @@ public class SensorStorage implements SensorRepository {
     }
 
     @Override
-    public void updateById(int id, Sensor updatedSensor)
+    public synchronized void updateById(int id, Sensor updatedSensor)
             throws SensorNotFoundException, DuplicateSensorException {
         if (updatedSensor == null) {
             throw new IllegalArgumentException("Датчик не может быть null");
@@ -116,15 +130,53 @@ public class SensorStorage implements SensorRepository {
             throw new DuplicateSensorException(updatedSensor.getId());
         }
         items.set(index, updatedSensor);
+        lastWrite.remove(id);
+        lastWrite.put(updatedSensor.getId(), System.currentTimeMillis());
     }
 
     @Override
-    public void deleteById(int id) throws SensorNotFoundException {
+    public synchronized void deleteById(int id) throws SensorNotFoundException {
         int index = indexOf(id);
         if (index < 0) {
             throw new SensorNotFoundException(id);
         }
         items.remove(index);
+        lastWrite.remove(id);
+    }
+
+    /**
+     * Атомарная запись показания: добавляет датчик, если id свободен, иначе
+     * разрешает коллизию по метке времени (побеждает более новое показание).
+     *
+     * @param incoming  новое состояние датчика (не null)
+     * @param timestamp время измерения в мс (например, System.currentTimeMillis())
+     */
+    public synchronized WriteResult upsert(Sensor incoming, long timestamp) {
+        if (incoming == null) {
+            throw new IllegalArgumentException("Датчик не может быть null");
+        }
+        int index = indexOf(incoming.getId());
+        if (index < 0) {
+            if (items.size() >= capacity) {
+                return WriteResult.STORAGE_FULL;
+            }
+            items.add(incoming);
+            lastWrite.put(incoming.getId(), timestamp);
+            return WriteResult.ADDED;
+        }
+        collisionCount++;
+        Long stored = lastWrite.get(incoming.getId());
+        if (stored != null && timestamp < stored) {
+            return WriteResult.STALE_IGNORED;
+        }
+        items.set(index, incoming);
+        lastWrite.put(incoming.getId(), timestamp);
+        return WriteResult.UPDATED;
+    }
+
+    /** Сколько раз запись пришла в уже существующий id (коллизии), с момента создания. */
+    public synchronized long getCollisionCount() {
+        return collisionCount;
     }
 
     private int indexOf(int id) {
