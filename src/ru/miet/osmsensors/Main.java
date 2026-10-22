@@ -7,10 +7,11 @@ import ru.miet.osmsensors.model.*;
 import ru.miet.osmsensors.view.ConsoleView;
 import ru.miet.osmsensors.controller.AppController;
 import ru.miet.osmsensors.controller.AppLogger;
+import ru.miet.osmsensors.controller.AppConfig;
+import ru.miet.osmsensors.controller.GuiController;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import ru.miet.osmsensors.controller.AppConfig;
-
 
 public class Main {
     private static final int DEFAULT_LIMIT = 20;
@@ -24,6 +25,7 @@ public class Main {
     public static void main(String[] args) {
         boolean demoMode = false;
         boolean benchmarkMode = false;
+        boolean guiMode = false;
         int limit = DEFAULT_LIMIT;
 
         for (int i = 0; i < args.length; i++) {
@@ -32,6 +34,8 @@ public class Main {
                 demoMode = true;
             } else if (arg.equals("--benchmark")) {
                 benchmarkMode = true;
+            } else if (arg.equals("--gui")) {
+                guiMode = true;
             } else if (arg.equals("--limit")) {
                 try {
                     int value = Integer.parseInt(args[i + 1]);
@@ -83,7 +87,11 @@ public class Main {
             controller.initDefaultData(Math.min(limit, DEFAULT_DEMO_COUNT));
             demonstrateEqualsAndHashCode(storage);
         }
-        controller.startInteractiveLoop();
+        if (guiMode) {
+            new GuiController(storage, fileRepository, logger).start();
+        } else {
+            controller.startInteractiveLoop();
+        }
     }
     private static void runBenchmark() {
         System.out.println("Режим --benchmark: эксперимент ArrayList vs LinkedList (может занять несколько секунд)...");
