@@ -1,59 +1,69 @@
 package ru.miet.osmsensors.model;
 
+import java.util.Locale;
 import java.util.Set;
 
-/** Валидация данных формы и создание датчика из строк полей ввода. */
+/** Geographic form validation: x=longitude, y=latitude (WGS84 degrees), radius=metres. */
 public class SensorValidator {
     public static final Set<String> TYPES = Set.of("T", "CO2", "N2");
     public static final Set<String> STATUSES = Set.of("OK", "WARNING", "ERROR");
 
-    private static double parseDouble(String text, String field, ValidationResult r) {
+    private static String normalize(String text) {
+        return text == null ? "" : text.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static double parseDouble(String text, String field, ValidationResult result) {
         try {
-            double v = Double.parseDouble(text.trim().replace(',', '.'));
-            if (Double.isNaN(v) || Double.isInfinite(v)) {
-                r.add(field, "недопустимое число");
-                return 0;
+            double value = Double.parseDouble(text.trim().replace(',', '.'));
+            if (!Double.isFinite(value)) {
+                result.add(field, "ожидалось конечное число");
+                return Double.NaN;
             }
-            return v;
-        } catch (NumberFormatException | NullPointerException e) {
-            r.add(field, "ожидалось число, введено \"" + text + "\"");
-            return 0;
+            return value;
+        } catch (NumberFormatException | NullPointerException ex) {
+            result.add(field, "ожидалось число");
+            return Double.NaN;
         }
     }
 
-    /** Проверяет все поля формы; ошибки собираются сразу по всем полям. */
+    /** Signature retained for controllers: x is longitude, y is latitude. */
     public static ValidationResult validate(String id, String x, String y, String radius,
                                             String value, String type, String status) {
-        ValidationResult r = new ValidationResult();
+        ValidationResult result = new ValidationResult();
         try {
-            if (Integer.parseInt(id.trim()) < 0) r.add("ID", "не может быть отрицательным");
-        } catch (NumberFormatException | NullPointerException e) {
-            r.add("ID", "ожидалось целое число");
+            if (Integer.parseInt(id.trim()) < 0)
+                result.add("ID", "не может быть отрицательным");
+        } catch (NumberFormatException | NullPointerException ex) {
+            result.add("ID", "ожидалось целое число");
         }
-        parseDouble(x, "X", r);
-        parseDouble(y, "Y", r);
-        if (parseDouble(radius, "Радиус", r) < 0) r.add("Радиус", "не может быть отрицательным");
-        parseDouble(value, "Значение", r);
-        if (type == null || !TYPES.contains(type.trim().toUpperCase()))
-            r.add("Тип", "допустимы T, CO2, N2");
-        if (status == null || !STATUSES.contains(status.trim().toUpperCase()))
-            r.add("Статус", "допустимы OK, WARNING, ERROR");
-        return r;
+        double longitude = parseDouble(x, "X", result);
+        double latitude = parseDouble(y, "Y", result);
+        if (longitude < -180 || longitude > 180)
+            result.add("X", "долгота WGS84 должна быть от -180 до 180 градусов");
+        if (latitude < -90 || latitude > 90)
+            result.add("Y", "широта WGS84 должна быть от -90 до 90 градусов");
+        if (parseDouble(radius, "Радиус", result) < 0)
+            result.add("Радиус", "радиус в метрах не может быть отрицательным");
+        parseDouble(value, "Значение", result);
+        if (!TYPES.contains(normalize(type))) result.add("Тип", "допустимы T, CO2, N2");
+        if (!STATUSES.contains(normalize(status))) result.add("Статус", "допустимы OK, WARNING, ERROR");
+        return result;
     }
 
-    /** Вызывать только после validate(...), когда isValid() == true. */
+    /** Performs validation itself; invalid data cannot bypass the form check here. */
     public static Sensor createSensor(String id, String x, String y, String radius,
                                       String value, String type, String status) {
-        int i = Integer.parseInt(id.trim());
-        double dx = Double.parseDouble(x.trim().replace(',', '.'));
-        double dy = Double.parseDouble(y.trim().replace(',', '.'));
-        double dr = Double.parseDouble(radius.trim().replace(',', '.'));
-        double dv = Double.parseDouble(value.trim().replace(',', '.'));
-        String st = status.trim().toUpperCase();
-        switch (type.trim().toUpperCase()) {
-            case "CO2": return new Co2Sensor(i, dx, dy, dr, dv, st);
-            case "N2":  return new GasSensor(i, dx, dy, dr, dv, st);
-            default:    return new TemperatureSensor(i, dx, dy, dr, dv, st);
+        ValidationResult result = validate(id, x, y, radius, value, type, status);
+        if (!result.isValid()) throw new IllegalArgumentException(result.toMessage());
+        int parsedId = Integer.parseInt(id.trim());
+        double longitude = Double.parseDouble(x.trim().replace(',', '.'));
+        double latitude = Double.parseDouble(y.trim().replace(',', '.'));
+        double radiusMeters = Double.parseDouble(radius.trim().replace(',', '.'));
+        double reading = Double.parseDouble(value.trim().replace(',', '.'));
+        switch (normalize(type)) {
+            case "CO2": return new Co2Sensor(parsedId, longitude, latitude, radiusMeters, reading, normalize(status));
+            case "N2": return new GasSensor(parsedId, longitude, latitude, radiusMeters, reading, normalize(status));
+            default: return new TemperatureSensor(parsedId, longitude, latitude, radiusMeters, reading, normalize(status));
         }
     }
 }
