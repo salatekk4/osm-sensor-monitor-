@@ -8,10 +8,6 @@ import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.GridLayout;
-import java.awt.Component;
-import javax.swing.OverlayLayout;
-import org.jxmapviewer.JXMapKit;
-import ru.miet.osmsensors.view.MapLoader;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -42,6 +38,15 @@ public class GuiController {
     private static final Integer[] COUNT_CHOICES = {50, 100, 200, 300};
     private static final int DEFAULT_COUNT = 200;
     private static final String DEFAULT_SEED = "42";
+
+    private static final boolean GEO_MODE = false;
+
+    private static final double MIN_LON = 35.2;
+    private static final double MAX_LON = 40.0;
+    private static final double MIN_LAT = 54.5;
+    private static final double MAX_LAT = 56.8;
+    private static final double MIN_RADIUS_M = 1000;
+    private static final double MAX_RADIUS_M = 5000;
 
     // Цвета и шрифты оформления
     private static final Color HEADER_COLOR = new Color(31, 41, 55);
@@ -80,27 +85,11 @@ public class GuiController {
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
 
-        MapLoader mapLoader = new MapLoader();
-        JXMapKit mapKit = mapLoader.getMapKit();
-
-        JPanel mapContainer = new JPanel();
-        mapContainer.setLayout(new OverlayLayout(mapContainer));
-
         canvas = new SensorCanvas();
-        canvas.setOpaque(false);
-
-        mapKit.setAlignmentX(Component.CENTER_ALIGNMENT);
-        mapKit.setAlignmentY(Component.CENTER_ALIGNMENT);
-        canvas.setAlignmentX(Component.CENTER_ALIGNMENT);
-        canvas.setAlignmentY(Component.CENTER_ALIGNMENT);
-
-        mapContainer.add(canvas);
-        mapContainer.add(mapKit);
 
         frame.add(createHeader(), BorderLayout.NORTH);
-        frame.add(mapContainer, BorderLayout.CENTER);
+        frame.add(canvas, BorderLayout.CENTER);
         frame.add(createStatusBar(), BorderLayout.SOUTH);
-
 
         refreshCanvas();
         frame.setVisible(true);
@@ -305,7 +294,37 @@ public class GuiController {
                 logger.logError(e);
                 break;
             }
-        } refreshCanvas();
+        }
+        refreshCanvas();
+        fitMapToSensors();
+    }
+
+    private Sensor[] createGeoSensors(int count, Random random) {
+        String[] statuses = {"OK", "WARNING", "ERROR"};
+        Sensor[] result = new Sensor[count];
+        for (int i = 0; i < count; i++) {
+            int id = i + 1;
+            double x = MIN_LON + random.nextDouble() * (MAX_LON - MIN_LON);
+            double y = MIN_LAT + random.nextDouble() * (MAX_LAT - MIN_LAT);
+            double radius = MIN_RADIUS_M + random.nextDouble() * (MAX_RADIUS_M - MIN_RADIUS_M);
+            String status = statuses[random.nextInt(statuses.length)];
+
+            switch (random.nextInt(3)) {
+                case 0:
+                    result[i] = new TemperatureSensor(id, x, y, radius, -30 + random.nextDouble() * 100, status);
+                    break;
+                case 1:
+                    result[i] = new Co2Sensor(id, x, y, radius, 300 + random.nextDouble() * 1200, status);
+                    break;
+                default:
+                    result[i] = new GasSensor(id, x, y, radius, random.nextDouble() * 100, status);
+            }
+        }
+        return result;
+    }
+
+    private void fitMapToSensors() {
+
     }
 
     private void refreshCanvas() {

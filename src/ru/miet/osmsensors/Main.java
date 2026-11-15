@@ -85,7 +85,8 @@ public class Main {
         SensorFileRepository fileRepository = new SensorFileRepository(Paths.get(config.getDbfile()));
         AppController controller = new AppController(storage, view, logger, fileRepository, config);
 
-        if (!controller.login()) {
+        boolean loggedIn = guiMode ? GuiController.askLogin(controller::checkCredentials, AppController.getMaxLoginAttempts()) : controller.login();
+        if (!loggedIn) {
             return;
         }
 
