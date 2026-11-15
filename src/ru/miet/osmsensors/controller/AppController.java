@@ -62,6 +62,21 @@ public class AppController {
         return false;
     }
 
+    public boolean checkCredentials(String login, String password) {
+        if (login.equals(config.getLogin()) && password.equals(config.getPassword())) {
+            logInfo("Старт программы. Пользователь: " + config.getLogin() + ", группа: " + config.getGroup());
+            debug("Настройки: debug=" + debugMode + ", autotests=" + config.isAutotests()
+                    + ", файл БД=" + fileRepository.getFile().toAbsolutePath());
+            return true;
+        }
+        logWarning("Неудачная попытка входа, введен логин: " + login);
+        return false;
+    }
+
+    public static int getMaxLoginAttempts() {
+        return MAX_LOGIN_ATTEMPTS;
+    }
+
     public void initDefaultData(int count) {
         SensorFactory factory = new SensorFactory(new Random());
 

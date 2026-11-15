@@ -16,6 +16,8 @@ import java.nio.file.Paths;
 public class Main {
     private static final int DEFAULT_LIMIT = 20;
 
+    private static final int GUI_DEFAULT_LIMIT = 1000;
+
     private static final int DEFAULT_DEMO_COUNT = 10;
 
     private static final long BENCHMARK_SEED = 12345L;
@@ -25,8 +27,8 @@ public class Main {
     public static void main(String[] args) {
         boolean demoMode = false;
         boolean benchmarkMode = false;
-        boolean guiMode = false;
-        int limit = DEFAULT_LIMIT;
+        boolean consoleMode = false;
+        int limit = -1;
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -34,8 +36,10 @@ public class Main {
                 demoMode = true;
             } else if (arg.equals("--benchmark")) {
                 benchmarkMode = true;
+            } else if (arg.equals("--console")){
+                consoleMode = true;
             } else if (arg.equals("--gui")) {
-                guiMode = true;
+                consoleMode = false;
             } else if (arg.equals("--limit")) {
                 try {
                     int value = Integer.parseInt(args[i + 1]);
@@ -56,6 +60,11 @@ public class Main {
         if (benchmarkMode) {
             runBenchmark();
             return;
+        }
+
+        boolean guiMode = !consoleMode;
+        if (limit < 0) {
+            limit = guiMode ? GUI_DEFAULT_LIMIT : DEFAULT_LIMIT;
         }
 
         System.out.println("Запуск приложения. Демо-режим: " + demoMode + ", " + " limit: " + limit);
@@ -83,7 +92,9 @@ public class Main {
         if (config.isAutotests()) {
             controller.runAutoTests();
         }
-        if (demoMode) {
+        if (demoMode && guiMode) {
+            System.out.println("--demo нужен только для консоли (--console): в окне датчики создаются кнопкой «Сгенерировать новые».");
+        } else if (demoMode) {
             controller.initDefaultData(Math.min(limit, DEFAULT_DEMO_COUNT));
             demonstrateEqualsAndHashCode(storage);
         }

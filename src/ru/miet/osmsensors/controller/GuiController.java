@@ -7,27 +7,41 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.GridLayout;
+import java.awt.Component;
+import javax.swing.OverlayLayout;
+import org.jxmapviewer.JXMapKit;
+import ru.miet.osmsensors.view.MapLoader;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Random;
+import java.util.function.BiPredicate;
 
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
-
+import javax.swing.event.AncestorEvent;
+import javax.swing.event.AncestorListener;
 import ru.miet.osmsensors.model.*;
 import ru.miet.osmsensors.view.SensorCanvas;
 
 public class GuiController {
     private static final int WINDOW_WIDTH = 1100;
     private static final int WINDOW_HEIGHT = 750;
-    private static final int GENERATE_COUNT = 15;
+    private static final Integer[] COUNT_CHOICES = {50, 100, 200, 300};
+    private static final int DEFAULT_COUNT = 200;
+    private static final String DEFAULT_SEED = "42";
 
     // Цвета и шрифты оформления
     private static final Color HEADER_COLOR = new Color(31, 41, 55);
@@ -46,6 +60,8 @@ public class GuiController {
 
     private SensorCanvas canvas;
     private JLabel statusLabel;
+    private JComboBox<Integer> countBox;
+    private JTextField seedField;
     private boolean alarmOnly = false;
 
     public GuiController(SensorRepository storage, SensorFileRepository fileRepository, AppLogger logger) {
@@ -64,13 +80,88 @@ public class GuiController {
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
 
+        MapLoader mapLoader = new MapLoader();
+        JXMapKit mapKit = mapLoader.getMapKit();
+
+        JPanel mapContainer = new JPanel();
+        mapContainer.setLayout(new OverlayLayout(mapContainer));
+
         canvas = new SensorCanvas();
+        canvas.setOpaque(false);
+
+        mapKit.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mapKit.setAlignmentY(Component.CENTER_ALIGNMENT);
+        canvas.setAlignmentX(Component.CENTER_ALIGNMENT);
+        canvas.setAlignmentY(Component.CENTER_ALIGNMENT);
+
+        mapContainer.add(canvas);
+        mapContainer.add(mapKit);
+
         frame.add(createHeader(), BorderLayout.NORTH);
-        frame.add(canvas, BorderLayout.CENTER);
+        frame.add(mapContainer, BorderLayout.CENTER);
         frame.add(createStatusBar(), BorderLayout.SOUTH);
+
 
         refreshCanvas();
         frame.setVisible(true);
+
+        SwingUtilities.invokeLater(this::generateSensors);
+    }
+
+    public static boolean askLogin(BiPredicate<String, String> check, int attempts) {
+        boolean[] success = {false};
+        try {
+            SwingUtilities.invokeAndWait(() -> success[0] = showLoginDialog(check, attempts));
+        } catch (InvocationTargetException e) {
+            Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+            System.err.println("Ошибка при входе: " + cause);
+            cause.printStackTrace();
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        return success[0];
+    }
+
+    private static boolean showLoginDialog(BiPredicate<String, String> check, int attempts) {
+        JTextField loginField = new JTextField(16);
+        JPasswordField passwordField = new JPasswordField(16);
+        loginField.addAncestorListener(new AncestorListener() {
+            @Override
+            public void ancestorAdded(AncestorEvent event) {
+                SwingUtilities.invokeLater(loginField::requestFocusInWindow);
+            }
+
+            @Override
+            public void ancestorRemoved(AncestorEvent event) {
+            }
+
+            @Override
+            public void ancestorMoved(AncestorEvent event) {
+            }
+        });
+        JPanel form = new JPanel(new GridLayout(0, 1, 0, 6));
+        form.add(new JLabel("Логин:"));
+        form.add(loginField);
+        form.add(new JLabel("Пароль:"));
+        form.add(passwordField);
+
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            int choice = JOptionPane.showConfirmDialog(null, form, "Вход — OSM Sensor Monitor",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (choice != JOptionPane.OK_OPTION) {
+                return false;
+            }
+            if (check.test(loginField.getText().trim(), new String(passwordField.getPassword()))) {
+                return true;
+            }
+            passwordField.setText("");
+            JOptionPane.showMessageDialog(null,
+                    "Неверный логин или пароль. Осталось попыток: " + (attempts - attempt),
+                    "Ошибка входа", JOptionPane.ERROR_MESSAGE);
+        }
+        return false;
     }
 
     private JPanel createHeader() {
@@ -107,10 +198,26 @@ public class GuiController {
             refreshCanvas();
         });
 
+        countBox = new JComboBox<>(COUNT_CHOICES);
+        countBox.setSelectedItem(DEFAULT_COUNT);
+        seedField = new JTextField(DEFAULT_SEED, 5);
+        seedField.setToolTipText("Одинаковый seed даёт одинаковый набор датчиков. Пусто = случайный набор.");
+
+        panel.add(createCaption("Датчиков:"));
+        panel.add(countBox);
+        panel.add(createCaption("Seed:"));
+        panel.add(seedField);
         panel.add(loadButton);
         panel.add(generateButton);
         panel.add(alarmButton);
         return panel;
+    }
+
+    private JLabel createCaption(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(STATUS_FONT);
+        label.setForeground(Color.WHITE);
+        return label;
     }
 
     private void styleButton(AbstractButton button, Color color) {
@@ -172,9 +279,24 @@ public class GuiController {
     }
 
     private void generateSensors() {
+        Random random;
+        String seedText = seedField.getText().trim();
+        if (seedText.isEmpty()) {
+            random = new Random();
+        } else {
+            try {
+                random = new Random(Long.parseLong(seedText));
+            } catch (NumberFormatException e) {
+                statusLabel.setText("Seed должен быть целым числом (или пустым для случайного набора)");
+                return;
+            }
+        }
+
+        int requested = (Integer) countBox.getSelectedItem();
         clearStorage();
-        SensorFactory factory = new SensorFactory(new Random());
-        for (Sensor sensor : factory.createSensors(Math.min(GENERATE_COUNT, storage.getCapacity()))) {
+        SensorFactory factory = new SensorFactory(random);
+        Sensor[] created = factory.createSensors(Math.min(requested, storage.getCapacity()));
+        for (Sensor sensor : created) {
             try {
                 storage.addUnique(sensor);
             } catch (DuplicateSensorException e) {
@@ -183,8 +305,7 @@ public class GuiController {
                 logger.logError(e);
                 break;
             }
-        }
-        refreshCanvas();
+        } refreshCanvas();
     }
 
     private void refreshCanvas() {

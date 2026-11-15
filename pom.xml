@@ -24,5 +24,11 @@
 
     <build>
         <sourceDirectory>src</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>src</directory>
+                <includes><include>**/*.properties</include></includes>
+            </resource>
+        </resources>
     </build>
 </project>
