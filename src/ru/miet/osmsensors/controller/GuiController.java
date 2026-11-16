@@ -287,6 +287,17 @@ public class GuiController {
         }
         refreshCanvas();
         fitMapToSensors();
+        //saveToFileQuietly();
+    }
+
+    private void saveToFileQuietly() {
+        try {
+            fileRepository.saveAll((SensorStorage) storage);
+            statusLabel.setText(statusLabel.getText() + "   •   сохранено в " + fileRepository.getFile());
+        } catch (IOException e) {
+            logger.logError(e);
+            statusLabel.setText("Ошибка сохранения: " + e.getMessage());
+        }
     }
 
     static Sensor[] createGeoSensors(int count, Random random) {
@@ -314,7 +325,7 @@ public class GuiController {
     }
 
     private void fitMapToSensors() {
-        //canvas.fitMapToSensors();
+        canvas.fitMapToSensors();
     }
 
     private void refreshCanvas() {

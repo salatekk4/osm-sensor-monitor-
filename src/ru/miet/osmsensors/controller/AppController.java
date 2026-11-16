@@ -306,6 +306,7 @@ public class AppController {
             int loaded = storage.getCount();
             view.printMessage("Загружено датчиков из файла: " + loaded);
             showAllSensors();
+            logInfo("Чтение БД из файла " + fileRepository.getFile() + ": загружено " + loaded);
         } catch (IOException | SensorFileFormatException | DuplicateSensorException | StorageFullException e) {
             logger.logError(e);
         }
