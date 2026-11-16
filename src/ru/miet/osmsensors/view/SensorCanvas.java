@@ -64,7 +64,6 @@ public class SensorCanvas extends JPanel {
 		mapKit.repaint();
 	}
 	
-
 	public void fitMapToSensors() {
 		HashSet<org.jxmapviewer.viewer.GeoPosition> points = new HashSet<org.jxmapviewer.viewer.GeoPosition> ();
 		for (Sensor sensor: sensors) {
