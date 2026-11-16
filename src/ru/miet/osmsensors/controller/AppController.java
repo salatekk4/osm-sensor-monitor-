@@ -78,9 +78,7 @@ public class AppController {
     }
 
     public void initDefaultData(int count) {
-        SensorFactory factory = new SensorFactory(new Random());
-
-        for (Sensor sensor: factory.createSensors(count)) {
+        for (Sensor sensor: GuiController.createGeoSensors(count, new Random())) {
             try {
                 storage.addUnique(sensor);
             } catch (DuplicateSensorException e){
@@ -303,37 +301,14 @@ public class AppController {
     }
 
     private void loadFromFile() {
-        List<Sensor> fromFile;
         try {
-            fromFile = fileRepository.readAll();
-        } catch (IOException e) {
+            fileRepository.loadReplacingInto(storage);
+            int loaded = storage.getCount();
+            view.printMessage("Загружено датчиков из файла: " + loaded);
+            showAllSensors();
+        } catch (IOException | SensorFileFormatException | DuplicateSensorException | StorageFullException e) {
             logger.logError(e);
-            return;
-        } catch (SensorFileFormatException e) {
-            logger.logError(e);
-            return;
         }
-
-        if (fromFile.isEmpty()) {
-            view.printMessage("Файл пуст или не найден.");
-            return;
-        }
-        clearStorage();
-        int loaded = 0;
-        for (Sensor sensor: fromFile) {
-            try {
-                storage.addUnique(sensor);
-                loaded++;
-            } catch (DuplicateSensorException e) {
-                logger.logError(e);
-            } catch (StorageFullException e) {
-                logger.logError(e);
-                break;
-            }
-        }
-        view.printMessage("Загружено датчиков из файла: " + loaded);
-        showAllSensors();
-        logInfo("Чтение БД из файла " + fileRepository.getFile() + ": загружено " + loaded);
     }
 
     private void clearStorage() {

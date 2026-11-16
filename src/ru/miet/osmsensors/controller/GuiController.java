@@ -246,25 +246,13 @@ public class GuiController {
     }
 
     private void loadFromFile() {
-        List<Sensor> fromFile;
         try {
-            fromFile = fileRepository.readAll();
-        } catch (IOException | SensorFileFormatException e) {
+            fileRepository.loadReplacingInto(storage);
+            refreshCanvas();
+        } catch (IOException | SensorFileFormatException | DuplicateSensorException | StorageFullException e) {
             logger.logError(e);
-            return;
+            statusLabel.setText("Ошибка загрузки файла: " + e.getMessage());
         }
-        clearStorage();
-        for (Sensor sensor : fromFile) {
-            try {
-                storage.addUnique(sensor);
-            } catch (DuplicateSensorException e) {
-                logger.logError(e);
-            } catch (StorageFullException e) {
-                logger.logError(e);
-                break;
-            }
-        }
-        refreshCanvas();
     }
 
     private void generateSensors() {
@@ -283,8 +271,10 @@ public class GuiController {
 
         int requested = (Integer) countBox.getSelectedItem();
         clearStorage();
-        SensorFactory factory = new SensorFactory(random);
-        Sensor[] created = factory.createSensors(Math.min(requested, storage.getCapacity()));
+        int count = Math.min(requested, storage.getCapacity());
+        Sensor[] created = GEO_MODE
+                ? createGeoSensors(count, random)
+                : new SensorFactory(random).createSensors(count);
         for (Sensor sensor : created) {
             try {
                 storage.addUnique(sensor);
@@ -299,7 +289,7 @@ public class GuiController {
         fitMapToSensors();
     }
 
-    private Sensor[] createGeoSensors(int count, Random random) {
+    static Sensor[] createGeoSensors(int count, Random random) {
         String[] statuses = {"OK", "WARNING", "ERROR"};
         Sensor[] result = new Sensor[count];
         for (int i = 0; i < count; i++) {
@@ -324,7 +314,7 @@ public class GuiController {
     }
 
     private void fitMapToSensors() {
-
+        //canvas.fitMapToSensors();
     }
 
     private void refreshCanvas() {
