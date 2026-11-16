@@ -5,203 +5,182 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Файловая «база данных» датчиков в CSV-формате.
- * Формат строки: id,type,x,y,radius,value,status.
- * Первая строка файла - заголовок.
+ * CSV: id,type,x,y,radius,value,status; x=longitude, y=latitude, radius=metres.
+ * All file records use SensorValidator, including reads and writes.
+ * Methods serialize operations through this instance, not across processes or
+ * separate instances. This is a file repository, not a multi-process database.
  */
 public class SensorFileRepository {
     public static final String HEADER = "id,type,x,y,radius,value,status";
-
     private final Path file;
 
     public SensorFileRepository(Path file) {
-        if (file == null) {
-            throw new IllegalArgumentException("Путь к файлу не может быть null");
-        }
+        if (file == null) throw new IllegalArgumentException("Path must not be null");
         this.file = file;
     }
 
-    public Path getFile() {
-        return file;
-    }
+    public Path getFile() { return file; }
 
-    /** Полностью перезаписывает файл содержимым хранилища. */
-    public void saveAll(SensorStorage storage) throws IOException {
-        if (storage == null) {
-            throw new IllegalArgumentException("Хранилище не может быть null");
-        }
-        List<Sensor> sensors = new ArrayList<Sensor>();
-        for (Sensor s : storage.getAll()) {
-            sensors.add(s);
-        }
+    public synchronized void saveAll(SensorStorage storage) throws IOException {
+        if (storage == null) throw new IllegalArgumentException("Storage must not be null");
+        List<Sensor> sensors = new ArrayList<>();
+        for (Sensor s : storage.getAll()) sensors.add(s);
         writeAll(sensors);
     }
 
-    /** Читает файл и добавляет датчики в хранилище. Если файла нет, ничего не делает. */
-    public void loadInto(SensorStorage storage)
+    /** Atomic append, preserving the old loadInto meaning. Missing file is a no-op. */
+    public synchronized void loadInto(SensorStorage storage)
             throws IOException, SensorFileFormatException, DuplicateSensorException, StorageFullException {
-        if (storage == null) {
-            throw new IllegalArgumentException("Хранилище не может быть null");
-        }
-        for (Sensor sensor : readAll()) {
-            storage.addUnique(sensor);
-        }
+        if (storage == null) throw new IllegalArgumentException("Storage must not be null");
+        storage.addAllUnique(readAll());
     }
 
-    /** Читает список всех датчиков из файла. Если файла нет, возвращает пустой список. */
-    public List<Sensor> readAll() throws IOException, SensorFileFormatException {
-        List<Sensor> sensors = new ArrayList<Sensor>();
-        if (!Files.exists(file)) {
-            return sensors;
-        }
+    /**
+     * Atomic replacement API for controllers. A missing file is an error, not an
+     * instruction to clear storage. A valid empty file intentionally clears it.
+     * Controllers must call this instead of deleting and adding one by one.
+     */
+    public synchronized void loadReplacingInto(SensorRepository storage)
+            throws IOException, SensorFileFormatException, DuplicateSensorException, StorageFullException {
+        if (storage == null) throw new IllegalArgumentException("Storage must not be null");
+        storage.replaceAllValidated(readAll(false));
+    }
+
+    public synchronized List<Sensor> readAll() throws IOException, SensorFileFormatException {
+        return readAll(true);
+    }
+
+    private List<Sensor> readAll(boolean missingIsEmpty) throws IOException, SensorFileFormatException {
+        List<Sensor> sensors = new ArrayList<>();
+        Set<Integer> ids = new HashSet<>();
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             String line;
             int lineNumber = 0;
+            boolean firstRecord = true;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
+                if (lineNumber == 1 && line.startsWith("\uFEFF")) line = line.substring(1);
                 line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")
-                        || (lineNumber == 1 && HEADER.equalsIgnoreCase(line))) {
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                if (firstRecord && HEADER.equalsIgnoreCase(line)) {
+                    firstRecord = false;
                     continue;
                 }
-                sensors.add(parse(line, lineNumber));
+                firstRecord = false;
+                Sensor s = parse(line, lineNumber);
+                if (!ids.add(s.getId()))
+                    throw new SensorFileFormatException(lineNumber, "Duplicate sensor ID: " + s.getId());
+                sensors.add(s);
             }
+        } catch (NoSuchFileException e) {
+            if (!missingIsEmpty) throw e;
         }
         return sensors;
     }
 
-    /** Добавляет датчик в файл; id должен быть уникальным. */
-    public void add(Sensor sensor) throws IOException, SensorFileFormatException, DuplicateSensorException {
-        requireSensor(sensor);
+    public synchronized void add(Sensor sensor)
+            throws IOException, SensorFileFormatException, DuplicateSensorException {
+        Sensor s = requireCopy(sensor);
         List<Sensor> sensors = readAll();
-        ensureIdIsFree(sensors, sensor.getId());
-        sensors.add(sensor);
+        ensureIdIsFree(sensors, s.getId());
+        sensors.add(s);
         writeAll(sensors);
     }
 
-    /** Заменяет данные датчика с указанным id. */
-    public void update(int id, Sensor updatedSensor)
+    public synchronized void update(int id, Sensor updatedSensor)
             throws IOException, SensorFileFormatException, SensorNotFoundException, DuplicateSensorException {
-        requireSensor(updatedSensor);
+        Sensor updated = requireCopy(updatedSensor);
         List<Sensor> sensors = readAll();
         int index = indexOf(sensors, id);
-        if (index < 0) {
-            throw new SensorNotFoundException(id);
-        }
-        if (updatedSensor.getId() != id) {
-            ensureIdIsFree(sensors, updatedSensor.getId());
-        }
-        sensors.set(index, updatedSensor);
+        if (index < 0) throw new SensorNotFoundException(id);
+        if (updated.getId() != id) ensureIdIsFree(sensors, updated.getId());
+        sensors.set(index, updated);
         writeAll(sensors);
     }
 
-    /** Удаляет датчик с указанным id. */
-    public void delete(int id) throws IOException, SensorFileFormatException, SensorNotFoundException {
+    public synchronized void delete(int id)
+            throws IOException, SensorFileFormatException, SensorNotFoundException {
         List<Sensor> sensors = readAll();
         int index = indexOf(sensors, id);
-        if (index < 0) {
-            throw new SensorNotFoundException(id);
-        }
+        if (index < 0) throw new SensorNotFoundException(id);
         sensors.remove(index);
         writeAll(sensors);
     }
 
+    /**
+     * Write a sibling temporary file, close it, then atomically replace the target.
+     * No unsafe truncate or non-atomic fallback. If ATOMIC_MOVE is unsupported,
+     * saving fails with IOException rather than deliberately overwriting in place.
+     * This protects replacement integrity, not durability across power failure.
+     */
     private void writeAll(List<Sensor> sensors) throws IOException {
-        // Сначала формируем все строки: при ошибке данных файл не будет испорчен.
-        List<String> lines = new ArrayList<String>();
-        for (Sensor sensor : sensors) {
-            lines.add(toCsv(sensor));
-        }
-        Path parent = file.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-        try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
-                StandardOpenOption.WRITE)) {
-            writer.write(HEADER);
-            writer.newLine();
-            for (String line : lines) {
-                writer.write(line);
-                writer.newLine();
+        List<String> lines = new ArrayList<>();
+        Set<Integer> ids = new HashSet<>();
+        for (Sensor source : sensors) {
+            Sensor s = requireCopy(source);
+            try {
+                s = SensorValidator.createSensor(Integer.toString(s.getId()),
+                        Double.toString(s.getX()), Double.toString(s.getY()),
+                        Double.toString(s.getRadius()), Double.toString(s.getValue()),
+                        s.getType(), s.getStatus());
+            } catch (IllegalArgumentException e) {
+                throw new IOException("Invalid sensor data: " + e.getMessage(), e);
             }
+            if (!ids.add(s.getId())) throw new IOException("Duplicate sensor ID: " + s.getId());
+            lines.add(s.getId() + "," + s.getType() + "," + s.getX() + "," + s.getY()
+                    + "," + s.getRadius() + "," + s.getValue() + "," + s.getStatus());
+        }
+        Path target = file.toAbsolutePath();
+        Path parent = target.getParent();
+        Files.createDirectories(parent);
+        Path temporary = Files.createTempFile(parent, ".sensor-", ".tmp");
+        try {
+            try (BufferedWriter writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
+                writer.write(HEADER);
+                writer.newLine();
+                for (String line : lines) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+            }
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporary);
         }
     }
 
     private Sensor parse(String line, int lineNumber) throws SensorFileFormatException {
         String[] fields = line.split(",", -1);
-        if (fields.length != 7) {
-            throw new SensorFileFormatException(lineNumber,
-                    "ожидалось 7 полей, получено " + fields.length);
-        }
+        if (fields.length != 7)
+            throw new SensorFileFormatException(lineNumber, "Expected 7 fields, got " + fields.length);
         try {
-            int id = Integer.parseInt(fields[0].trim());
-            String type = fields[1].trim();
-            double x = Double.parseDouble(fields[2].trim());
-            double y = Double.parseDouble(fields[3].trim());
-            double radius = Double.parseDouble(fields[4].trim());
-            double value = Double.parseDouble(fields[5].trim());
-            String status = fields[6].trim();
-            if (status.isEmpty()) {
-                throw new SensorFileFormatException(lineNumber, "статус не может быть пустым");
-            }
-            return createSensor(type, id, x, y, radius, value, status, lineNumber);
-        } catch (NumberFormatException e) {
-            throw new SensorFileFormatException(lineNumber, "некорректное число", e);
+            return SensorValidator.createSensor(fields[0], fields[2], fields[3],
+                    fields[4], fields[5], fields[1], fields[6]);
+        } catch (IllegalArgumentException e) {
+            throw new SensorFileFormatException(lineNumber, e.getMessage(), e);
         }
     }
 
-    private Sensor createSensor(String type, int id, double x, double y, double radius,
-                                double value, String status, int lineNumber)
-            throws SensorFileFormatException {
-        if ("T".equalsIgnoreCase(type)) {
-            return new TemperatureSensor(id, x, y, radius, value, status);
-        }
-        if ("CO2".equalsIgnoreCase(type)) {
-            return new Co2Sensor(id, x, y, radius, value, status);
-        }
-        if ("N2".equalsIgnoreCase(type)) {
-            return new GasSensor(id, x, y, radius, value, status);
-        }
-        throw new SensorFileFormatException(lineNumber, "неизвестный тип датчика: " + type);
-    }
-
-    private String toCsv(Sensor sensor) {
-        String status = sensor.getStatus();
-        if (status == null || status.trim().isEmpty() || status.indexOf(',') >= 0
-                || status.indexOf('\n') >= 0 || status.indexOf('\r') >= 0) {
-            throw new IllegalArgumentException(
-                    "Статус датчика должен быть непустым и без запятых и переносов строк");
-        }
-        return sensor.getId() + "," + sensor.getType() + "," + sensor.getX() + ","
-                + sensor.getY() + "," + sensor.getRadius() + "," + sensor.getValue()
-                + "," + status.trim();
-    }
-
-    private void requireSensor(Sensor sensor) {
-        if (sensor == null) {
-            throw new IllegalArgumentException("Датчик не может быть null");
-        }
+    private Sensor requireCopy(Sensor sensor) {
+        if (sensor == null) throw new IllegalArgumentException("Sensor must not be null");
+        return sensor.copy();
     }
 
     private void ensureIdIsFree(List<Sensor> sensors, int id) throws DuplicateSensorException {
-        if (indexOf(sensors, id) >= 0) {
-            throw new DuplicateSensorException(id);
-        }
+        if (indexOf(sensors, id) >= 0) throw new DuplicateSensorException(id);
     }
 
     private int indexOf(List<Sensor> sensors, int id) {
-        for (int i = 0; i < sensors.size(); i++) {
-            if (sensors.get(i).getId() == id) {
-                return i;
-            }
-        }
+        for (int i = 0; i < sensors.size(); i++) if (sensors.get(i).getId() == id) return i;
         return -1;
     }
 }
