@@ -23,10 +23,10 @@ public class MapLoader {
         mapKit.setZoomSliderVisible(true);
         mapKit.setZoomButtonsVisible(true);
 
-        GeoPosition zelenograd = new GeoPosition(55.9833, 37.2089);
+        GeoPosition moscow = new GeoPosition(55.75, 37.62);
 
-        mapKit.setZoom(5);
-        mapKit.setAddressLocation(zelenograd);
+        mapKit.setZoom(11);
+        mapKit.setAddressLocation(moscow);
 	}
 	
 	public JXMapKit getMapKit() {

@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.geom.*;
 import javax.swing.*;
 import java.util.List;
+import java.util.HashSet;
 import org.jxmapviewer.JXMapViewer;
 import org.jxmapviewer.JXMapKit;
 import ru.miet.osmsensors.model.*;
@@ -39,13 +40,12 @@ public class SensorCanvas extends JPanel {
         	List<SensorRenderData> data = viewport.toRenderData(sensors);
         	for (SensorRenderData renderData: data) {
         		Sensor sensor = renderData.getSensor();
-        		if (sensor.getId() == 1) System.out.println(sensor);
         		Point2D point = mapViewer.convertGeoPositionToPoint(new org.jxmapviewer.viewer.GeoPosition(sensor.getY(), sensor.getX()));
         		double x = point.getX();
-        		//double x = renderData.getScreenX();
         		double y = point.getY();
-        		//double y = renderData.getScreenY();
-        		double r = sensor.getRadius() / (40075016.686 * Math.cos(sensor.getY() / (256 * Math.pow(2, mapViewer.getZoom()))));
+        		int osmZoom = viewer.getTileFactory().getInfo().getTotalMapZoom() - viewer.getZoom();
+        		double metersPerPixel = 40075016.686 * Math.cos(Math.toRadians(sensor.getY())) / (256 * Math.pow(2, osmZoom));
+        		double r = Math.max(sensor.getRadius() / metersPerPixel, 4);
         		Ellipse2D circle = new Ellipse2D.Double(x - r, y - r, 2*r, 2*r);
         		g2.setColor(renderData.getFillColor());
         		g2.fill(circle);
@@ -60,7 +60,16 @@ public class SensorCanvas extends JPanel {
 	
 	public void setSensors(Sensor[] sensors) {
 		this.sensors = (sensors != null) ? sensors : new Sensor[0];
-		showLabels = (sensors.length <= 40);
+		showLabels = (this.sensors.length <= 40);
 		mapKit.repaint();
+	}
+	
+
+	public void fitMapToSensors() {
+		HashSet<org.jxmapviewer.viewer.GeoPosition> points = new HashSet<org.jxmapviewer.viewer.GeoPosition> ();
+		for (Sensor sensor: sensors) {
+			points.add(new org.jxmapviewer.viewer.GeoPosition(sensor.getY(), sensor.getX()));
+		}
+		mapViewer.zoomToBestFit(points, 0.9);
 	}
 }
