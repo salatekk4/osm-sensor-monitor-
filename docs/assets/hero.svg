@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">OSM Sensor Monitor</title>
+  <desc id="desc">Original conceptual illustration of a sensor map. Not an application screenshot or live telemetry.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071321"/><stop offset="1" stop-color="#102b3f"/></linearGradient>
+    <linearGradient id="accent"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#93c5fd" stroke-opacity=".07"/></pattern>
+    <clipPath id="mapClip"><rect x="650" y="40" width="510" height="320" rx="24"/></clipPath>
+  </defs>
+  <rect width="1200" height="400" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="400" rx="24" fill="url(#grid)"/>
+  <path d="M0 398H1200" stroke="url(#accent)" stroke-width="4"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="48" y="44" width="234" height="28" rx="14" fill="#38bdf8" fill-opacity=".12" stroke="#38bdf8" stroke-opacity=".4"/>
+    <text x="65" y="63" fill="#7dd3fc" font-size="12" letter-spacing="2">JAVA / MVC / GEOSPATIAL</text>
+    <text x="46" y="150" fill="#f0f9ff" font-size="62" font-weight="700" letter-spacing="1">OSM SENSOR</text>
+    <text x="46" y="219" fill="url(#accent)" font-size="62" font-weight="700" letter-spacing="2">MONITOR</text>
+    <text x="49" y="260" fill="#cbd5e1" font-size="19">ДАТЧИКИ. КАРТА. КОНТРОЛЬ.</text>
+    <g fill="#0b2132" stroke="#345266">
+      <rect x="49" y="291" width="122" height="34" rx="9"/>
+      <rect x="181" y="291" width="143" height="34" rx="9"/>
+      <rect x="334" y="291" width="142" height="34" rx="9"/>
+    </g>
+    <g fill="#cbd5e1" font-size="12" letter-spacing="1">
+      <text x="68" y="313">WGS84 DATA</text><text x="198" y="313">CSV STORAGE</text><text x="354" y="313">CRC32 FRAMES</text>
+    </g>
+    <text x="50" y="365" fill="#647f94" font-size="11" letter-spacing="2">MIET · TEAM SEMESTER PROJECT</text>
+  </g>
+  <rect x="650" y="40" width="510" height="320" rx="24" fill="#0b1d2a" stroke="#345266"/>
+  <g clip-path="url(#mapClip)">
+    <path d="M636 96L756 62L814 104L901 71L982 104L1080 65L1177 95V362H636Z" fill="#102d36"/>
+    <path d="M699 38C804 91 757 147 856 181S940 235 1000 275S1067 315 1116 374" fill="none" stroke="#144763" stroke-width="39"/>
+    <path d="M699 38C804 91 757 147 856 181S940 235 1000 275S1067 315 1116 374" fill="none" stroke="#38bdf8" stroke-opacity=".22" stroke-width="15"/>
+    <g fill="none" stroke="#49606c" stroke-width="3">
+      <path d="M645 268L744 224L845 251L930 176L1059 195L1170 138"/>
+      <path d="M739 40L734 150L797 216L783 367"/>
+      <path d="M960 35L901 114L940 220L904 366"/>
+      <path d="M1094 37L1040 112L1070 237L1158 315"/>
+      <path d="M646 154L734 150L901 114L1040 112L1168 76"/>
+    </g>
+    <path d="M651 307L808 286L930 318L1168 269" fill="none" stroke="#d9c08b" stroke-opacity=".6" stroke-width="5"/>
+    <g stroke-dasharray="5 6" fill="none" stroke-opacity=".5"><path d="M778 132L958 236L1081 119" stroke="#7dd3fc" stroke-width="2"/></g>
+    <g fill="#2dd4bf" stroke="#2dd4bf"><circle cx="778" cy="132" r="55" fill-opacity=".08" stroke-opacity=".35"/><circle cx="778" cy="132" r="30" fill="none" stroke-opacity=".5"/><circle cx="778" cy="132" r="8" stroke="#ccfbf1" stroke-width="3"/></g>
+    <g fill="#fb7185" stroke="#fb7185"><circle cx="958" cy="236" r="66" fill-opacity=".08" stroke-opacity=".35"/><circle cx="958" cy="236" r="37" fill="none" stroke-opacity=".5"/><circle cx="958" cy="236" r="8" stroke="#ffe4e6" stroke-width="3"/></g>
+    <g fill="#fbbf24" stroke="#fbbf24"><circle cx="1081" cy="119" r="41" fill-opacity=".08" stroke-opacity=".35"/><circle cx="1081" cy="119" r="8" stroke="#fef3c7" stroke-width="3"/></g>
+    <g font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#e2e8f0">
+      <rect x="796" y="113" width="59" height="25" rx="7" fill="#071321"/><text x="811" y="130">T / 01</text>
+      <rect x="974" y="246" width="78" height="25" rx="7" fill="#071321"/><text x="987" y="263">CO2 / 02</text>
+      <rect x="1054" y="156" width="72" height="25" rx="7" fill="#071321"/><text x="1065" y="173">N2 / 03</text>
+    </g>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="10" fill="#94a3b8" letter-spacing="1.5">
+    <rect x="674" y="322" width="327" height="22" rx="6" fill="#071321" fill-opacity=".9"/>
+    <text x="686" y="337">CONCEPT ILLUSTRATION · NOT A SCREENSHOT</text>
+  </g>
+</svg>
