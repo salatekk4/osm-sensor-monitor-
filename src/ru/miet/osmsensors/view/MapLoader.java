@@ -1,5 +1,7 @@
 package ru.miet.osmsensors.view;
 
+import java.awt.Dimension;
+
 import org.jxmapviewer.JXMapKit;
 import org.jxmapviewer.OSMTileFactoryInfo;
 import org.jxmapviewer.viewer.DefaultTileFactory;
@@ -9,7 +11,11 @@ import org.jxmapviewer.viewer.TileFactoryInfo;
 public class MapLoader {
 	private static JXMapKit mapKit;
 	public MapLoader() {
-		mapKit = new JXMapKit();
+		mapKit = new JXMapKit() {
+			public Dimension getPreferredSize() {
+				return new Dimension(getParent().getWidth(), getParent().getHeight());
+			}
+		};
 		
 		TileFactoryInfo info = new OSMTileFactoryInfo("OpenStreetMap", "https://tile.openstreetmap.org");
 		
@@ -22,6 +28,7 @@ public class MapLoader {
         
         mapKit.setZoomSliderVisible(true);
         mapKit.setZoomButtonsVisible(true);
+        mapKit.setMiniMapVisible(false);
 
         GeoPosition moscow = new GeoPosition(55.75, 37.62);
 
