@@ -176,6 +176,7 @@ public class SensorCanvas extends JPanel {
 		showLabels = (this.sensors.length <= 40);
 		mapKit.repaint();
 		sensorTable.setSensors(this.sensors);
+		table = new JTable(sensorTable);
 	}
 	
 	public void fitMapToSensors() {
