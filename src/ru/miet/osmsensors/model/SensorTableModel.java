@@ -7,7 +7,7 @@ import java.util.List;
 /** Модель данных для JTable со списком датчиков. */
 public class SensorTableModel extends AbstractTableModel {
     private static final String[] COLUMNS =
-        {"ID", "Тип", "X", "Y", "Радиус", "Значение", "Статус", "Авария"};
+        {"ID", "Тип", "Долгота", "Широта", "Радиус", "Значение", "Статус", "Авария"};
     private final List<Sensor> rows = new ArrayList<>();
 
     public void setSensors(Sensor[] sensors) {
